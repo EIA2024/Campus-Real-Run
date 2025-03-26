@@ -88,37 +88,34 @@ Note:
             return
 
         self.is_ios17_plus = "--ios17" in arg
-
+        
         if not self.check_admin():
             logger.error("请使用管理员权限运行此程序！ / Please run this program with administrator privileges!")
             return
 
-        while True:
-            logger.info("检查开发者模式状态... / Checking developer mode status...")
-            dev_mode_status = self.run_command(f"{self.python_cmd} -m pymobiledevice3 amfi developer-mode-status", check_output=True)
-            if "false" in dev_mode_status:
-                logger.error("开发者模式未启用，请使用 'enable_dev_mode' 命令启用开发者模式 / Developer mode is not enabled, please use the 'enable_dev_mode' command to enable developer mode")
-                return
+        logger.info("检查开发者模式状态... / Checking developer mode status...")
+        dev_mode_status = self.run_command(f"{self.python_cmd} -m pymobiledevice3 amfi developer-mode-status", check_output=True)
+        if "false" in dev_mode_status:
+            logger.error("开发者模式未启用，请使用 'enable_dev_mode' 命令启用开发者模式 / Developer mode is not enabled, please use the 'enable_dev_mode' command to enable developer mode")
+            return
 
-            logger.info("正在启动tunneld服务... / Starting tunneld service...")
-            self.tunneld_process = self.run_command(f"{self.python_cmd} -m pymobiledevice3 remote tunneld")
-            time.sleep(2)
+        logger.info("正在启动tunneld服务... / Starting tunneld service...")
+        self.tunneld_process = self.run_command(f"{self.python_cmd} -m pymobiledevice3 remote tunneld")
+        time.sleep(2)
 
-            logger.info("正在启动tunnel服务... / Starting tunnel service...")
-            tunnel_command = f"{self.python_cmd} -m pymobiledevice3 lockdown start-tunnel" if self.is_ios17_plus else \
-                            f"{self.python_cmd} -m pymobiledevice3 remote start-tunnel"
-            self.tunnel_process = self.run_command(tunnel_command)
-            time.sleep(2)
+        logger.info("正在启动tunnel服务... / Starting tunnel service...")
+        tunnel_command = f"{self.python_cmd} -m pymobiledevice3 lockdown start-tunnel" if self.is_ios17_plus else \
+                        f"{self.python_cmd} -m pymobiledevice3 remote start-tunnel"
+        self.tunnel_process = self.run_command(tunnel_command)
+        time.sleep(2)
 
-            logger.info("测试DVT服务... / Testing DVT service...")
-            test_output = self.run_command(f"{self.python_cmd} -m pymobiledevice3 developer dvt ls /", check_output=True)
-            if test_output and "/Applications" in test_output:
-                logger.info("连接成功建立！ / Connection established successfully!")
-                self.initialized = True
-                break
-            else:
-                logger.error("连接失败，5秒后将重试... / Connection failed, retrying in 5 seconds...")
-                time.sleep(5)
+        logger.info("测试DVT服务... / Testing DVT service...")
+        test_output = self.run_command(f"{self.python_cmd} -m pymobiledevice3 developer dvt ls /", check_output=True)
+        if test_output and "/Applications" in test_output:
+            logger.info("连接成功建立！ / Connection established successfully!")
+            self.initialized = True
+        else:
+            logger.error("连接失败，请检查设备连接和权限设置 / Connection failed, please check device connection and permission settings")
 
     def do_enable_dev_mode(self, arg):
         """
@@ -152,39 +149,34 @@ Note:
         if not arg:
             logger.error("请提供GPX文件路径！ / Please provide the GPX file path!")
             return
-
+        
         if not arg.endswith('.gpx'):
             logger.error("无效的GPX文件路径！ / Invalid GPX file path!")
             return
-
+        
         gpx_file = Path(arg)
 
-        while True:  # 添加一个无限循环，用于重试
-            logger.info("开始模拟位置移动... / Starting location simulation...")
-            logger.info("按Ctrl+C可以停止模拟 / Press Ctrl+C to stop simulation")
+        logger.info("开始模拟位置移动... / Starting location simulation...")
+        logger.info("按Ctrl+C可以停止模拟 / Press Ctrl+C to stop simulation")
 
-            command = f'pymobiledevice3 developer dvt simulate-location play {gpx_file} 1000'
-            try:
-                process = subprocess.Popen(
-                    command,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True
-                )
-                for line in process.stdout:
-                    print(line, end='')
-                break  # 如果成功完成，退出循环
-            except KeyboardInterrupt:
-                # 捕获 Ctrl+C，直接调用退出逻辑
-                logger.info("\n用户中断程序，正在退出...")
-                self.do_exit(None)  # 调用退出方法
-                sys.exit(0)
-                break
-            except Exception as e:
-                logger.error(f"位置模拟过程中出错: {e} / Error during location simulation: {e}")
-                logger.info("10秒后将重新尝试... / Retrying in 10 seconds...")
-                time.sleep(10)  # 等待10秒后重试
+        logger.info('启动模拟位置 / Simulating location')
+
+        command = f'pymobiledevice3 developer dvt simulate-location play {gpx_file} 1000'
+        try:
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            for line in process.stdout:
+                print(line, end='')
+        except KeyboardInterrupt:
+            logger.info("\n停止位置模拟... / Stopping location simulation...")
+            process.terminate()
+        except Exception as e:
+            logger.error(f"位置模拟过程中出错: {e} / Error during location simulation: {e}")
 
     def do_cleanup(self, arg):
         """
@@ -230,33 +222,10 @@ Note:
 
 if __name__ == '__main__':
     try:
-        shell = CampusRunShell()
-
-        # 初始化设备连接
-        while True:
-            if shell.onecmd('init --ios17') is None:  # 自动执行 init --ios17
-                if shell.initialized:  # 如果初始化成功
-                    logger.info("设备初始化成功，开始执行 start data.gpx...")
-                    break  # 跳出初始化循环
-            logger.info("初始化失败，5秒后重试... / Initialization failed, retrying in 5 seconds...")
-            time.sleep(5)  # 初始化失败，等待5秒后重试
-
-        # 循环执行 start data.gpx，直到成功或手动中断
-        while True:
-            try:
-                time.sleep(4)
-                shell.onecmd('start data.gpx')  # 执行 start data.gpx
-                  # 如果执行成功，跳出循环
-            except Exception as e:
-                logger.error(f"执行 start data.gpx 时出错: {e}")
-                logger.info("10秒后将再次尝试执行 start data.gpx...")
-                time.sleep(10)  # 等待10秒后重试
-            except KeyboardInterrupt:
-                logger.info("\n程序被中断，正在清理... / Program interrupted, cleaning up...")
-                shell.do_cleanup('')
-                sys.exit(0)
+        CampusRunShell().cmdloop()
     except KeyboardInterrupt:
         logger.info("\n程序被中断，正在清理... / Program interrupted, cleaning up...")
-        shell.do_cleanup('')
         sys.exit(0)
+
+
 #set location to

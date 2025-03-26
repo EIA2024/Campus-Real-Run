@@ -122,23 +122,23 @@ def generate_gpx(points, round_count, fluctuation_range,speed):
 
 def main():
     points = []
-    lon_0 = 120.681379  # 起点经度
-    lat_0 = 27.918553  # 起点纬度
+    lon_0 = 120.722871  # 起点经度
+    lat_0 = 30.524924  # 起点纬度
 
-    lon_1 = 120.681212  # 第二点经度
-    lat_1 = 27.919372  # 第二点纬度
+    lon_1 = 120.722874  # 第二点经度
+    lat_1 = 30.524138  # 第二点纬度
 
-    lon_2 = 120.680402  # 第三点经度
-    lat_2 = 27.919234  # 第三点纬度
+    lon_2 = 120.723683  # 第三点经度
+    lat_2 = 30.524135  # 第三点纬度
     
     points.append((lat_0, lon_0))
     points.append((lat_1, lon_1))
     points.append((lat_2, lon_2))
     
     round_count = 10  # 重复圈数
-    fluctuation_range = 0.5  # GPS浮动（米）
+    fluctuation_range = 0.75 # GPS浮动（米）
     # coordinate_spacing = 0.2 # 坐标间隔（米）
-    speed = 3 # 速度（米每秒）
+    speed = 4.5 # 速度（米每秒）
     result = generate_gpx(points, round_count, fluctuation_range,speed)
     
     file_extension = 'gpx'
@@ -146,3 +146,5 @@ def main():
         f.write(result)
 
 main()
+
+#set location to
